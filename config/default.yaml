@@ -1,0 +1,84 @@
+version: "0.1.0"
+environment: development
+
+venues:
+  - id: 0
+    name: "binance-spot"
+    adapter: "binance"
+    ws_url: "wss://stream.binance.com:9443/ws"
+    rest_url: "https://api.binance.com"
+    rate_limit_rps: 10
+    reconnect_delay_ms: 1000
+    max_reconnect_attempts: 10
+
+symbols:
+  - id: 0
+    name: "BTCUSDT"
+    venue_id: 0
+    base: "BTC"
+    quote: "USDT"
+    tick_size: "0.01"
+    lot_size: "0.00001"
+    min_notional: "10.0"
+
+graph:
+  max_nodes: 1000000
+  max_edges: 5000000
+  gc_interval_s: 60
+  gc_ttl_s: 300
+
+embedding:
+  dimensions: 64
+  window_ticks: 100
+  update_interval_ms: 50
+  model: "reservoir"
+
+coherence:
+  mincut_threshold: 0.5
+  drift_window: 1000
+  cusum_h: 4.0
+  cusum_k: 0.5
+  regime_thresholds:
+    calm: 0.3
+    normal: 0.5
+    volatile: 0.8
+  evaluation_interval_ms: 100
+
+risk:
+  max_position_usd: 10000
+  max_daily_loss_usd: 1000
+  max_order_size_usd: 1000
+  max_open_orders: 10
+  kill_switch_loss_usd: 5000
+  circuit_breaker_drawdown_pct: 5
+
+strategies:
+  - name: "microstructure-alpha"
+    enabled: true
+    symbols: [0]
+    params:
+      lookback_ticks: 500
+      entry_threshold: 0.7
+      exit_threshold: 0.3
+
+storage:
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "neural_trader"
+    user: "neural_trader"
+    password: "${POSTGRES_PASSWORD}"
+    max_connections: 10
+  event_retention_days: 30
+  snapshot_interval_s: 300
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  ws_path: "/ws"
+  api_prefix: "/api/v1"
+
+telemetry:
+  enabled: true
+  metrics_port: 9090
+  log_level: "info"
