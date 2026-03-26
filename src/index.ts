@@ -69,6 +69,15 @@ import { getWasmLoader } from './wasm/loader.js';
 import { createLogger } from './shared/logger.js';
 import type { AppConfig } from './config/schema.js';
 
+// Shutdown handler
+export { ShutdownHandler } from './pipeline/shutdown-handler.js';
+
+// Reconciler
+export { Reconciler, type ExchangeState, type ReconciliationResult } from './execution/reconciler.js';
+
+// Alerter
+export { Alerter, type AlertConfig, type AlertType, type Alert } from './monitoring/alerter.js';
+
 const logger = createLogger({ component: 'bootstrap' });
 
 export async function startNeuralTrader(configPath: string): Promise<{
@@ -84,6 +93,15 @@ export async function startNeuralTrader(configPath: string): Promise<{
   await wasmLoader.init();
   const health = await wasmLoader.healthCheck();
   logger.info(health, 'WASM module initialized');
+
+  // Note: ShutdownHandler should be wired up when LivePipeline, OrderManager,
+  // and KillSwitch are instantiated. Example usage:
+  //
+  //   import { ShutdownHandler } from './pipeline/shutdown-handler.js';
+  //   const shutdownHandler = new ShutdownHandler(pipeline, orderManager, killSwitch, logger);
+  //   shutdownHandler.register();
+  //
+  // The handler will listen for SIGTERM/SIGINT and perform graceful shutdown.
 
   const shutdown = async (): Promise<void> => {
     logger.info('Shutting down Neural Trader');

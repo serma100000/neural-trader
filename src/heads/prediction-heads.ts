@@ -1,5 +1,5 @@
 import type { Prediction } from '../gnn/types.js';
-import type { PredictionHead } from './types.js';
+import type { PredictionHead, TrainablePredictionHead } from './types.js';
 import { MLP } from './mlp.js';
 import { TOTAL_EMBEDDING_DIM } from '../gnn/types.js';
 
@@ -8,7 +8,7 @@ import { TOTAL_EMBEDDING_DIM } from '../gnn/types.js';
  * Architecture: 512 -> 256 -> 1, linear output.
  * Loss: Huber loss.
  */
-export class MidPriceHead implements PredictionHead {
+export class MidPriceHead implements TrainablePredictionHead {
   readonly name = 'mid_price';
   private readonly mlp: MLP;
 
@@ -18,7 +18,6 @@ export class MidPriceHead implements PredictionHead {
 
   predict(embedding: Float32Array): Prediction {
     const output = this.mlp.forward(embedding);
-    // Confidence derived from magnitude (stronger signal = higher confidence)
     const magnitude = Math.abs(output[0]);
     const confidence = Math.min(1.0, magnitude / (magnitude + 1.0));
     return {
@@ -28,6 +27,8 @@ export class MidPriceHead implements PredictionHead {
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /**
@@ -35,7 +36,7 @@ export class MidPriceHead implements PredictionHead {
  * Architecture: 512 -> 256 -> 1, sigmoid output.
  * Loss: Binary cross-entropy.
  */
-export class FillProbHead implements PredictionHead {
+export class FillProbHead implements TrainablePredictionHead {
   readonly name = 'fill_prob';
   private readonly mlp: MLP;
 
@@ -46,7 +47,6 @@ export class FillProbHead implements PredictionHead {
   predict(embedding: Float32Array): Prediction {
     const output = this.mlp.forward(embedding);
     const prob = output[0];
-    // Confidence: higher when probability is near 0 or 1 (certain)
     const confidence = Math.abs(2 * prob - 1);
     return {
       headName: this.name,
@@ -55,6 +55,8 @@ export class FillProbHead implements PredictionHead {
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /**
@@ -62,7 +64,7 @@ export class FillProbHead implements PredictionHead {
  * Architecture: 512 -> 256 -> 1, sigmoid output.
  * Loss: Binary cross-entropy.
  */
-export class CancelProbHead implements PredictionHead {
+export class CancelProbHead implements TrainablePredictionHead {
   readonly name = 'cancel_prob';
   private readonly mlp: MLP;
 
@@ -81,6 +83,8 @@ export class CancelProbHead implements PredictionHead {
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /**
@@ -88,7 +92,7 @@ export class CancelProbHead implements PredictionHead {
  * Architecture: 512 -> 256 -> 1, softplus output (non-negative).
  * Loss: Quantile loss.
  */
-export class SlippageHead implements PredictionHead {
+export class SlippageHead implements TrainablePredictionHead {
   readonly name = 'slippage';
   private readonly mlp: MLP;
 
@@ -99,7 +103,6 @@ export class SlippageHead implements PredictionHead {
   predict(embedding: Float32Array): Prediction {
     const output = this.mlp.forward(embedding);
     const slippage = output[0];
-    // Confidence: inversely related to predicted slippage magnitude
     const confidence = 1.0 / (1.0 + slippage);
     return {
       headName: this.name,
@@ -108,6 +111,8 @@ export class SlippageHead implements PredictionHead {
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /**
@@ -115,7 +120,7 @@ export class SlippageHead implements PredictionHead {
  * Architecture: 512 -> 256 -> 1, sigmoid output.
  * Loss: Binary cross-entropy with class weights.
  */
-export class VolJumpHead implements PredictionHead {
+export class VolJumpHead implements TrainablePredictionHead {
   readonly name = 'vol_jump';
   private readonly mlp: MLP;
 
@@ -134,6 +139,8 @@ export class VolJumpHead implements PredictionHead {
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /**
@@ -141,7 +148,7 @@ export class VolJumpHead implements PredictionHead {
  * Architecture: 512 -> 256 -> 3, softmax output (Calm, Normal, Volatile).
  * Loss: Categorical cross-entropy.
  */
-export class RegimeTransitionHead implements PredictionHead {
+export class RegimeTransitionHead implements TrainablePredictionHead {
   readonly name = 'regime_transition';
   private readonly mlp: MLP;
 
@@ -151,7 +158,6 @@ export class RegimeTransitionHead implements PredictionHead {
 
   predict(embedding: Float32Array): Prediction {
     const output = this.mlp.forward(embedding);
-    // Find the argmax regime and its probability
     let maxIdx = 0;
     let maxProb = output[0];
     for (let i = 1; i < output.length; i++) {
@@ -160,15 +166,21 @@ export class RegimeTransitionHead implements PredictionHead {
         maxIdx = i;
       }
     }
-    // Confidence: max probability minus uniform (1/3)
     const confidence = Math.max(0, (maxProb - 1.0 / 3.0) / (2.0 / 3.0));
     return {
       headName: this.name,
-      value: maxIdx, // 0=Calm, 1=Normal, 2=Volatile
+      value: maxIdx,
       confidence,
       tsNs: BigInt(Date.now()) * 1_000_000n,
     };
   }
+
+  /** Get raw softmax output for training (cross-entropy needs full distribution). */
+  predictRaw(embedding: Float32Array): Float32Array {
+    return this.mlp.forward(embedding);
+  }
+
+  getMlp(): MLP { return this.mlp; }
 }
 
 /** Create all six prediction heads. */

@@ -106,4 +106,40 @@ export class MLP {
   getInputDim(): number {
     return this.layerDims[0];
   }
+
+  /** Get layer dimensions array. */
+  getLayerDims(): readonly number[] {
+    return this.layerDims;
+  }
+
+  /** Get the weight matrix for a given layer index. */
+  getWeights(layerIndex: number): Float32Array {
+    if (layerIndex < 0 || layerIndex >= this.weights.length) {
+      throw new Error(`Layer index ${layerIndex} out of range [0, ${this.weights.length})`);
+    }
+    return this.weights[layerIndex];
+  }
+
+  /** Get the bias vector for a given layer index. */
+  getBiases(layerIndex: number): Float32Array {
+    if (layerIndex < 0 || layerIndex >= this.biases.length) {
+      throw new Error(`Layer index ${layerIndex} out of range [0, ${this.biases.length})`);
+    }
+    return this.biases[layerIndex];
+  }
+
+  /** Get the number of trainable parameter arrays (weights + biases). */
+  getNumParamArrays(): number {
+    return this.weights.length + this.biases.length;
+  }
+
+  /** Get all trainable parameter arrays as [weights0, biases0, weights1, biases1, ...]. */
+  getParameterArrays(): Float32Array[] {
+    const params: Float32Array[] = [];
+    for (let i = 0; i < this.weights.length; i++) {
+      params.push(this.weights[i]);
+      params.push(this.biases[i]);
+    }
+    return params;
+  }
 }

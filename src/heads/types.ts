@@ -17,3 +17,8 @@ export interface ControlHead {
   readonly name: string;
   evaluate(embedding: Float32Array): { headName: string; value: number; confidence: number };
 }
+
+/** A prediction head that exposes its MLP for training. */
+export interface TrainablePredictionHead extends PredictionHead {
+  getMlp(): import('./mlp.js').MLP;
+}

@@ -6,3 +6,7 @@ dist/
 .DS_Store
 coverage/
 .claude-flow/data/
+logs/
+data/
+!data/checkpoints/.gitkeep
+!logs/.gitkeep
